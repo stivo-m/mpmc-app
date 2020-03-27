@@ -1,36 +1,33 @@
 import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:mpmc/authentication/Utils.dart';
-import 'package:mpmc/authentication/auth.dart';
+import 'package:mpmc/enums/auth_state_enums.dart';
 import './bloc.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginBloc extends Bloc<LoginEvent, LoginState> {
   @override
-  LoginState get initialState =>
-      InitialLoginState(isLoggedIn: false, status: AuthState.Processing);
+  LoginState get initialState => InitialLoginState(state: MpmcAuthState.IDLE);
 
   @override
   Stream<LoginState> mapEventToState(
     LoginEvent event,
   ) async* {
     if (event is LoginWithCredentials) {
-      yield LoginProcessing(status: event.authState);
+      yield LoginProcessing(state: MpmcAuthState.PROCESSING);
       FirebaseUser user = await respository.signInWithEmailAndPassword(
           event.email, event.password);
       yield user == null
-          ? LoginError(error: "Something is Wrong")
-          : LoginSuccess(user: user, name: user.displayName);
+          ? LoginCompleted(state: MpmcAuthState.FAILED)
+          : LoginCompleted(state: MpmcAuthState.SUCCESSFUL);
     }
 
     if (event is LoginWithGoogle) {
-      yield LoginProcessing(status: AuthState.Processing);
+      yield LoginProcessing(state: MpmcAuthState.PROCESSING);
       FirebaseUser user = await respository.googleSignin();
       yield user == null
-          ? LoginError(error: "Something Went Wrong")
-          : LoginSuccess(isLoggedIn: true, name: user.displayName, user: user);
+          ? LoginCompleted(state: MpmcAuthState.FAILED)
+          : LoginCompleted(state: MpmcAuthState.SUCCESSFUL);
     }
-
-    if (event is LoginIssue) {}
   }
 }

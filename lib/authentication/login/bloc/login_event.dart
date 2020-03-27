@@ -1,17 +1,12 @@
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
-import 'package:mpmc/authentication/auth.dart';
 
 @immutable
 abstract class LoginEvent extends Equatable {}
 
 class LoginWithCredentials extends LoginEvent {
   final String email, password;
-  final AuthState authState;
-  LoginWithCredentials(
-      {@required this.authState,
-      @required this.email,
-      @required this.password});
+  LoginWithCredentials({@required this.email, @required this.password});
 }
 
 class LoginWithGoogle extends LoginEvent {

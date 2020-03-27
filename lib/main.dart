@@ -27,20 +27,23 @@ class MyApp extends StatelessWidget {
 
   Widget buildMain(BuildContext context, ThemeState state) {
     return MaterialApp(
-        //builder: DevicePreview.appBuilder,
-        title: 'MPMC APP',
-        debugShowCheckedModeBanner: false,
-        theme: state.themeData,
-        home: FutureBuilder(
-          future: respository.currentUser(),
-          builder: (context, snapshot) {
-            if (snapshot.hasData) {
-              respository.handleMpesaInitialization();
-              return snapshot.data.uid == null ? LoginScreen() : Home();
-            } else {
-              return LoginScreen();
-            }
-          },
-        ));
+      //builder: DevicePreview.appBuilder,
+
+      title: 'MPMC APP',
+      debugShowCheckedModeBanner: false,
+      theme: state.themeData,
+      home: FutureBuilder(
+        future: respository.currentUser(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            respository.handleMpesaInitialization();
+
+            return snapshot.data.uid == null ? LoginScreen() : Home();
+          } else {
+            return LoginScreen();
+          }
+        },
+      ),
+    );
   }
 }

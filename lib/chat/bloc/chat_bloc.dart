@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:mpmc/chat/chat_utils.dart';
+import 'package:mpmc/enums/file_upload_enum.dart';
 import './bloc.dart';
 
 class ChatBloc extends Bloc<ChatEvent, ChatState> {
@@ -28,20 +29,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       print("Chat user is typing...");
     }
 
-    if (event is CheckNotifications) {
-      //chack notifications and yield a notification state with values
-      yield NewNotification(count: 0, notifs: true);
-      print("Notifications Checked");
-    }
-
     if (event is SendImage) {
-      yield SendingMessage(sending: true);
-      String msg = '';
-      bool success = true;
-      print("started");
+      yield UploadProcess(uploadStatus: FileUpload.PROCESSING_UPLOAD);
       await chat.uploadImage(event.file, event.recipient);
-      print("complete");
-      yield MessageSent(msg: msg, status: success);
+      yield UploadProcess(uploadStatus: FileUpload.COMPLETE_UPLOAD);
     }
   }
 }
