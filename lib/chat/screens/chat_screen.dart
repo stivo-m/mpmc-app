@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mpmc/authentication/Utils.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:mpmc/chat/chat_utils.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:mpmc/models/user_model.dart';
 
 class ChatScreen extends StatefulWidget {
   final DocumentSnapshot chatUser;
@@ -20,6 +22,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   ScrollController _scrollController;
   bool isChatEmpty = true;
+  User user;
 
   Future uploadImage(BuildContext context) async {
     File image = await ImagePicker.pickImage(source: ImageSource.gallery);
@@ -49,65 +52,70 @@ class _ChatScreenState extends State<ChatScreen> {
 
     scrollToBottom();
 
+    user = User.fromMap(respository.userDoc.data);
+
     super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Hero(
-          tag: widget.chatUser.documentID,
-          child: Padding(
-            padding: const EdgeInsets.only(top: 8.0),
-            child: CircleAvatar(
-                backgroundColor: Colors.transparent,
-                child: Stack(
-                  children: <Widget>[
-                    Positioned(
-                      top: 0,
-                      right: 0,
-                      left: 0,
-                      bottom: 0,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.all(Radius.circular(50)),
-                        child: Image(
-                          image: NetworkImage(widget.chatUser.data["photoURL"]),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 5.0),
-                      child: Align(
-                        alignment: Alignment.bottomRight,
-                        child: Container(
-                          constraints:
-                              BoxConstraints(maxHeight: 12, maxWidth: 12),
-                          decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: widget.chatUser.data["online"]
-                                  ? Colors.green
-                                  : Colors.red),
-                        ),
-                      ),
-                    )
-                  ],
-                )),
+    return SafeArea(
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios),
+            onPressed: () => Navigator.pop(context),
           ),
+          title: Hero(
+            tag: widget.chatUser.documentID,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: CircleAvatar(
+                  backgroundColor: Colors.transparent,
+                  child: Stack(
+                    children: <Widget>[
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        left: 0,
+                        bottom: 0,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.all(Radius.circular(50)),
+                          child: Image(
+                            image:
+                                NetworkImage(widget.chatUser.data["photoURL"]),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 5.0),
+                        child: Align(
+                          alignment: Alignment.bottomRight,
+                          child: Container(
+                            constraints:
+                                BoxConstraints(maxHeight: 12, maxWidth: 12),
+                            decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: widget.chatUser.data["online"]
+                                    ? Colors.green
+                                    : Colors.red),
+                          ),
+                        ),
+                      )
+                    ],
+                  )),
+            ),
+          ),
+          centerTitle: true,
         ),
-        centerTitle: true,
-      ),
-      body: BlocProvider(
-        builder: (context) => ChatBloc(),
-        child: BlocBuilder<ChatBloc, ChatState>(
-          builder: (context, state) {
-            return _buildBody(context, state);
-          },
+        body: BlocProvider(
+          builder: (context) => ChatBloc(),
+          child: BlocBuilder<ChatBloc, ChatState>(
+            builder: (context, state) {
+              return _buildBody(context, state);
+            },
+          ),
         ),
       ),
     );
@@ -131,23 +139,23 @@ class _ChatScreenState extends State<ChatScreen> {
             uploadImage(context);
           },
           onPressed: () {
-            isChatEmpty
-                ? BlocProvider.of<ChatBloc>(context).dispatch(StartNewChat(
-                    message: _controller.text,
-                    sender: respository.user.uid,
-                    recipient: widget.chatUser.data["uid"],
-                    token: widget.chatUser.data["devToken"]))
-                : BlocProvider.of<ChatBloc>(context).dispatch(SendMessage(
-                    message: _controller.text,
-                    sender: respository.user.uid,
-                    recipient: widget.chatUser.data["uid"],
-                    token: widget.chatUser.data["devToken"]));
+            if (_controller.text.isEmpty || _controller.text.trim() == '') {
+              return;
+            }
 
+            BlocProvider.of<ChatBloc>(context).dispatch(
+              SendMessage(
+                message: _controller.text,
+                sender: User.fromMap(respository.userDoc.data),
+                receiver: User.fromMap(widget.chatUser.data),
+              ),
+            );
             _scrollController.animateTo(0.0,
                 curve: Curves.easeIn, duration: Duration(milliseconds: 100));
 
             setState(() {
               _controller.clear();
+              _controller.text = "";
             });
           },
         ),
@@ -156,13 +164,11 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _chatLogSection(BuildContext contex) {
-    String chatID =
-        chat.getChatId(widget.chatUser.data["uid"], respository.user.uid);
     return StreamBuilder(
         stream: respository.db
-            .collection("Chat")
-            .document(chatID)
-            .collection("messages")
+            .collection("chats")
+            .document(respository.user.uid)
+            .collection(widget.chatUser.data["uid"])
             .orderBy("sent_at", descending: true)
             .snapshots(),
         builder: (context, snapshot) {
@@ -202,33 +208,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           crossAxisAlignment: isMine
                               ? CrossAxisAlignment.start
                               : CrossAxisAlignment.end,
-                          children: <Widget>[
-                            Row(
-                              mainAxisAlignment: isMine
-                                  ? MainAxisAlignment.start
-                                  : MainAxisAlignment.end,
-                              children: <Widget>[
-                                CircleAvatar(
-                                  radius: 20,
-                                  backgroundColor: Colors.grey.withOpacity(0.2),
-                                  child: ClipRRect(
-                                    borderRadius:
-                                        BorderRadius.all(Radius.circular(50)),
-                                    child: Image(
-                                      image: NetworkImage(isMine
-                                          ? respository.user.photoUrl
-                                          : widget.chatUser.data["photoURL"]),
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(
-                                  width: 10,
-                                ),
-                                Text(msg.data["senderName"])
-                              ],
-                            ),
-                            myMessage(msg, isMine, isFile),
-                          ],
+                          children: <Widget>[myMessage(msg, isMine, isFile)],
                         )
                       ],
                     ),
@@ -241,7 +221,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   myMessage(DocumentSnapshot msg, bool isMine, bool isFile) {
     return Padding(
-      padding: const EdgeInsets.only(top: 10.0, bottom: 10),
+      padding: const EdgeInsets.only(top: 5.0, bottom: 5),
       child: Container(
         padding: EdgeInsets.only(top: 5),
         constraints: BoxConstraints(
@@ -250,19 +230,23 @@ class _ChatScreenState extends State<ChatScreen> {
             ? BoxDecoration(
                 color: isFile ? Colors.transparent : Colors.green,
                 borderRadius: BorderRadius.only(
-                    topRight: Radius.circular(30),
-                    bottomRight: Radius.circular(30),
-                    bottomLeft: Radius.circular(30)))
+                  topRight: Radius.circular(30),
+                  bottomRight: Radius.circular(30),
+                  bottomLeft: Radius.circular(30),
+                ),
+              )
             : BoxDecoration(
                 color: isFile ? Colors.transparent : Colors.deepPurple,
                 borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(30),
-                    bottomLeft: Radius.circular(30),
-                    bottomRight: Radius.circular(30))),
+                  topLeft: Radius.circular(30),
+                  bottomLeft: Radius.circular(30),
+                  topRight: Radius.circular(30),
+                ),
+              ),
         child: Padding(
           padding: isMine
               ? EdgeInsets.only(left: 20, top: 10, bottom: 10, right: 10)
-              : EdgeInsets.only(left: 30, top: 10, bottom: 10, right: 30),
+              : EdgeInsets.only(left: 20, top: 10, bottom: 10, right: 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
@@ -280,19 +264,33 @@ class _ChatScreenState extends State<ChatScreen> {
                       )
                     : Text(
                         msg.data["message"],
-                        style: TextStyle(color: Colors.white, fontSize: 18),
+                        style: TextStyle(color: Colors.white, fontSize: 14),
                         softWrap: true,
                       ),
               ),
-              SizedBox(
-                height: 10,
-              ),
-              Text(
-                DateFormat("Hm").format(msg.data["sent_at"].toDate()),
-                style: TextStyle(
-                    color: isFile ? Colors.black87 : Colors.white,
-                    fontStyle: FontStyle.italic,
-                    fontSize: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    DateFormat("Hm").format(msg.data["sent_at"].toDate()),
+                    style: TextStyle(
+                        color: isFile ? Colors.black87 : Colors.white54,
+                        fontStyle: FontStyle.italic,
+                        fontSize: 10),
+                  ),
+                  isMine
+                      ? Container()
+                      : Icon(
+                          msg.data["read"] == true
+                              ? Icons.done_all
+                              : Icons.done,
+                          color: msg.data["read"] == true
+                              ? Colors.blue
+                              : Colors.grey,
+                          size: 15,
+                        )
+                ],
               ),
             ],
           ),

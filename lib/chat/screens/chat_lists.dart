@@ -29,7 +29,7 @@ class _ChatListsScreenState extends State<ChatListsScreen> {
               titleVisible: true,
             ),
             StreamBuilder(
-                stream: Firestore.instance.collection("users").snapshots(),
+                stream: respository.db.collection("users").snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.hasData) {
                     if (snapshot.data.documents.length == 0) {
@@ -67,7 +67,10 @@ class _ChatListsScreenState extends State<ChatListsScreen> {
       return Column(
         children: <Widget>[
           StreamBuilder(
-            stream: respository.db.collection("chat_list").snapshots(),
+            stream: respository.db
+                .collection("users")
+                .where("uid", isEqualTo: doc.documentID)
+                .snapshots(),
             builder: (context, snapshots) {
               if (snapshots.hasData) {
                 if (snapshots.data.documents.length == 0) {

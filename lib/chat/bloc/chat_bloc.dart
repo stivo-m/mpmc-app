@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:mpmc/chat/chat_utils.dart';
 import 'package:mpmc/enums/file_upload_enum.dart';
+import 'package:mpmc/models/message_model.dart';
 import './bloc.dart';
 
 class ChatBloc extends Bloc<ChatEvent, ChatState> {
@@ -14,7 +15,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   ) async* {
     if (event is SendMessage) {
       yield SendingMessage(sending: true);
-      await chat.sendMessage(event.recipient, event.message, event.token);
+      Message message = Message(
+          message: event.message,
+          receiverId: event.receiver.id,
+          senderId: event.sender.id,
+          dateTime: DateTime.now());
+      await chat.sendAmessage(event.sender, event.receiver, message);
       yield MessageSent();
     }
 

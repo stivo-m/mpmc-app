@@ -1,8 +1,9 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mpmc/authentication/Utils.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:mpmc/models/message_model.dart';
+import 'package:mpmc/models/user_model.dart';
 import 'package:path/path.dart';
 
 class Chat {
@@ -131,17 +132,46 @@ class Chat {
 
     return isMine;
   }
+
+  //send a message
+  Future sendAmessage(User recipient, User sender, Message message) async {
+    await _db
+        .collection("chats")
+        .document(sender.id)
+        .collection(recipient.id)
+        .add(message.toMap());
+
+    return await _db
+        .collection("chats")
+        .document(recipient.id)
+        .collection(sender.id)
+        .add(message.toMap());
+  }
+
+  //send an image
+  Future sendChatImage(
+      File file, User sender, User recipient, Message message) async {
+    //Create a reference to the location you want to upload to in firebase
+    String fileName = basename(file.path);
+    StorageReference reference = _storage.ref().child("chats/$fileName");
+    //Upload the file to firebase
+    StorageUploadTask uploadTask = reference.putFile(file);
+    // Waits till the file is uploaded then stores the download url
+    String data = await (await uploadTask.onComplete).ref.getDownloadURL();
+    message.imageFile = data;
+
+    await _db
+        .collection("chats")
+        .document(sender.id)
+        .collection(recipient.id)
+        .add(message.toMap());
+
+    return await _db
+        .collection("chats")
+        .document(recipient.id)
+        .collection(sender.id)
+        .add(message.toMap());
+  }
 }
 
 Chat chat = Chat();
-
-class ChatUser {
-  final String id, name, photoUrl;
-  final bool hasNotificatins, isOnline;
-  ChatUser(
-      {this.hasNotificatins = false,
-      this.isOnline = false,
-      @required this.id,
-      @required this.name,
-      this.photoUrl = ""});
-}

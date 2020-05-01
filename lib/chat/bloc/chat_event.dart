@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
+import 'package:mpmc/models/user_model.dart';
 
 @immutable
 abstract class ChatEvent extends Equatable {
@@ -8,15 +9,13 @@ abstract class ChatEvent extends Equatable {
 }
 
 class SendMessage extends ChatEvent {
-  final bool isNew;
-  final String sender, message, recipient, token;
-  SendMessage(
-      {this.isNew = false,
-      @required this.sender,
-      @required this.message,
-      @required this.recipient,
-      this.token})
-      : super([isNew, sender, message, recipient, token]);
+  final String message;
+  final User sender, receiver;
+  SendMessage({
+    @required this.message,
+    @required this.sender,
+    @required this.receiver,
+  }) : super([sender, message, receiver]);
 }
 
 class StartNewChat extends ChatEvent {
